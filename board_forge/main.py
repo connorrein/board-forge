@@ -354,18 +354,52 @@ class GamePieceOrganizerApp:
             import traceback
             traceback.print_exc()
             messagebox.showerror("Optimization Error", error_msg)
-    
+        
     def export_svg(self):
         """Export the current design as SVG files"""
         if not self.design.slots:
             messagebox.showinfo("Error", "No slots to export")
             return
             
-        # TODO: Placeholder for SVG export
         try:
-            self.status_var.set("SVG export not yet implemented")
+            from tkinter import filedialog
+            
+            # Ask for save location
+            file_path = filedialog.asksaveasfilename(
+                initialfile='out.svg',
+                defaultextension=".svg",
+                filetypes=[("SVG files", "*.svg"), ("All files", "*.*")],
+                title="Save SVG file"
+            )
+            
+            if not file_path:  # User cancelled
+                return
+                
+            print(f"Attempting to save SVG to: {file_path}")
+            svg_drawing = self.design.to_svg()
+            
+            # Save the SVG file
+            svg_drawing.save(pretty=True)
+            with open(file_path,'w') as f:
+                f.write(svg_drawing.tostring())
+            
+            # TODO: DEBUGGING
+            import os
+            if os.path.exists(file_path):
+                print(f"SUCCESS: File exists at {file_path}")
+                print(f"File size: {os.path.getsize(file_path)} bytes")
+            else:
+                print(f"ERROR: File does not exist at {file_path} after save operation")
+
+            self.status_var.set(f"SVG exported to {file_path}")
+            messagebox.showinfo("Export Complete", f"SVG successfully saved to:\n{file_path}")
+            
+        except ImportError as e:
+            messagebox.showerror("Export Error", f"Missing required package: {e}")
         except Exception as e:
-            messagebox.showerror("Export Error", str(e))
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Export Error", f"Failed to export SVG: {str(e)}")
     
     def validate_design(self):
         """Validate that the current design is valid (no overlaps, etc.)"""

@@ -20,12 +20,12 @@ class Design:
 
     @property
     def is_valid(self) -> bool:
-        # Check slots don't overlap
-        for i, slot1 in enumerate(self.slots):
-            for slot2 in self.slots[i + 1:]:
-                if slot1.intersects(slot2):
+        """Check if all slots maintain a minimum distance from each other"""
+        min_distance = 10.0
+        for i in range(len(self.slots)):
+            for j in range(i + 1, len(self.slots)):
+                if self.slots[i].distance(self.slots[j]) < min_distance:
                     return False
-
         return True
 
 
@@ -57,5 +57,27 @@ class Design:
                 stroke='black',
                 stroke_width=stroke_width
             ))
+        
+        try:
+            # DEBUGGING
+            svg_string = dwg.tostring()
+            print(f"SVG string length: {len(svg_string)}")
+            
+            print(f"SVG start: {svg_string[:100]}")
+        except Exception as e:
+            print(f"Error generating SVG string: {e}")
+            
+        original_saveas = dwg.saveas
+        def debug_saveas(filepath):
+            print(f"saveas called with filepath: {filepath}")
+            try:
+                result = original_saveas(filepath)
+                print(f"saveas returned: {result}")
+                return result
+            except Exception as e:
+                print(f"saveas failed with error: {e}")
+                raise
+        
+        dwg.saveas = debug_saveas
 
         return dwg
