@@ -34,10 +34,11 @@ class Design:
 
         bb = self.bounding_box
         dwg = Drawing(
-            size=(f"{bb.bounds[2] - bb.bounds[0]}mm", f"{bb.bounds[3] - bb.bounds[1]}mm"),
-            viewBox=f"{bb.bounds[0]} {bb.bounds[1]} {bb.bounds[2] - bb.bounds[0]} {bb.bounds[3] - bb.bounds[1]}"
+            size=(f"{bb.bounds[2] - bb.bounds[0]}mm", f"{(bb.bounds[3] - bb.bounds[1]) * 2}mm"),
+            viewBox=f"{bb.bounds[0]} {bb.bounds[1]} {bb.bounds[2] - bb.bounds[0]} {(bb.bounds[3] - bb.bounds[1]) * 2}"
         )
 
+        # Top piece
         # Bounding box with rounded corners
         dwg.add(dwg.rect(
             insert=(bb.bounds[0], bb.bounds[1]),
@@ -48,7 +49,6 @@ class Design:
             stroke='black',
             stroke_width=stroke_width
         ))
-
         # Slots
         for slot in self.slots:
             dwg.add(dwg.polygon(
@@ -57,27 +57,16 @@ class Design:
                 stroke='black',
                 stroke_width=stroke_width
             ))
-        
-        try:
-            # DEBUGGING
-            svg_string = dwg.tostring()
-            print(f"SVG string length: {len(svg_string)}")
-            
-            print(f"SVG start: {svg_string[:100]}")
-        except Exception as e:
-            print(f"Error generating SVG string: {e}")
-            
-        original_saveas = dwg.saveas
-        def debug_saveas(filepath):
-            print(f"saveas called with filepath: {filepath}")
-            try:
-                result = original_saveas(filepath)
-                print(f"saveas returned: {result}")
-                return result
-            except Exception as e:
-                print(f"saveas failed with error: {e}")
-                raise
-        
-        dwg.saveas = debug_saveas
+
+        # Bottom piece
+        dwg.add(dwg.rect(
+            insert=(bb.bounds[0], bb.bounds[3]),
+            size=(bb.bounds[2] - bb.bounds[0], bb.bounds[3] - bb.bounds[1]),
+            rx=PADDING,
+            ry=PADDING,
+            fill='none',
+            stroke='black',
+            stroke_width=stroke_width
+        ))
 
         return dwg
