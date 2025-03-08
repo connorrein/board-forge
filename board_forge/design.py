@@ -16,6 +16,7 @@ class Design:
         return box(min_x, min_y, max_x, max_y)
 
 
+    @property
     def is_valid(self) -> bool:
         # Check slots don't overlap
         for i, slot1 in enumerate(self.slots):
