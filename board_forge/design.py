@@ -3,6 +3,7 @@ from typing import List
 from shapely import unary_union
 from shapely.geometry import Polygon, box
 
+PADDING = 5
 
 @dataclass
 class Design:
@@ -13,7 +14,7 @@ class Design:
     def bounding_box(self) -> Polygon:
         unified = unary_union(self.slots)
         min_x, min_y, max_x, max_y = unified.bounds
-        return box(min_x, min_y, max_x, max_y)
+        return box(min_x - PADDING, min_y - PADDING, max_x + PADDING, max_y + PADDING)
 
 
     @property
