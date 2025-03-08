@@ -7,7 +7,7 @@ import argparse
 import imutils
 import cv2
 
-disp = False
+disp = True
 
 def midpoint(ptA, ptB):
     return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
@@ -19,6 +19,8 @@ def piece_dims(image_file, width = 19.05):
     edged = cv2.Canny(gray, 50, 100)
     edged = cv2.dilate(edged, None, iterations=1)
     edged = cv2.erode(edged, None, iterations=1)
+    cv2.imshow("Image", edged)
+    cv2.waitKey(0)
     cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,
         cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
@@ -55,7 +57,7 @@ def piece_dims(image_file, width = 19.05):
             dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
 
             if pixelsPerMetric is None:
-                pixelsPerMetric = dA / width
+                pixelsPerMetric = dB / width
             
             dimA = dA / pixelsPerMetric
             dimB = dB / pixelsPerMetric
@@ -74,7 +76,8 @@ def piece_dims(image_file, width = 19.05):
             
             
 if __name__ == "__main__":
-    file_name = "/homes/iws/idoavnon/556/board-forge/example_images/img.png"
-    piece_dims(file_name, 80)
+    #FOR TESTING
+    file_name = "/homes/iws/idoavnon/556/board-forge/board_forge/data/sample_images/IMG_4995.JPG"
+    piece_dims(file_name, 20)
     
 
