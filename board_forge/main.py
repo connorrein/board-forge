@@ -301,11 +301,59 @@ class GamePieceOrganizerApp:
             messagebox.showinfo("Error", "No slots to optimize")
             return
         
-        # TODO: Placeholder for optimization algorithm call
         try:
-            self.status_var.set("Optimization algorithm not yet implemented")
+            # Import optimization module
+            import board_forge.optimize as optimize_module
+            print(f"Optimize module: {optimize_module}")
+            print(f"Optimize module dir: {dir(optimize_module)}")
+            
+            # Update status
+            self.status_var.set("Running optimization... Please wait.")
+            self.root.update()
+            
+            # Get the optimize function - make sure we're accessing the function correctly
+            optimize_func = optimize_module.optimize
+            print(f"Optimize function: {optimize_func}")
+            
+            # Make a copy of the current design
+            current_design = self.design
+            print(f"Current design: {current_design}, slots: {len(current_design.slots)}")
+            
+            # Run the optimization with explicit arguments
+            optimized_design = optimize_func(
+                initial_design=current_design, 
+                iterations=1000,  # Reduced iterations for testing
+                alpha=0.99
+            )
+            
+            print(f"Optimization completed, result: {optimized_design}")
+            
+            # Update the design with the optimized one
+            self.design = optimized_design
+            
+            # Update the board view
+            self.board.design = self.design
+            self.board.update_view()
+            
+            # Reset any selection state
+            if hasattr(self.board, 'selected_slot'):
+                self.board.selected_slot = None
+            
+            self.status_var.set("Optimization complete! Area minimized.")
+        except ImportError as e:
+            error_msg = f"Import error: {e}"
+            print(error_msg)
+            messagebox.showerror("Optimization Error", error_msg)
+        except AttributeError as e:
+            error_msg = f"Attribute error: {e}"
+            print(error_msg)
+            messagebox.showerror("Optimization Error", error_msg)
         except Exception as e:
-            messagebox.showerror("Optimization Error", str(e))
+            error_msg = f"Error running optimization: {e}\nType: {type(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Optimization Error", error_msg)
     
     def export_svg(self):
         """Export the current design as SVG files"""
