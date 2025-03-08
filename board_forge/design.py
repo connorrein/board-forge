@@ -3,7 +3,7 @@ from typing import List
 from shapely import unary_union
 from shapely.geometry import Polygon, box
 
-PADDING = 5
+PADDING = 10
 
 @dataclass
 class Design:

@@ -55,7 +55,7 @@ class BoardCanvas(tk.Canvas):
             
             self.slot_objects[polygon_id] = i
         
-        # If slots exist, draw the calculated bounding box with 5mm? padding 
+        # If slots exist, draw the calculated bounding box with NO? padding 
         # since we need to have a border at edge of the actual svg
         if self.design.slots:
             try:
@@ -63,12 +63,12 @@ class BoardCanvas(tk.Canvas):
                 
                 min_x, min_y, max_x, max_y = bb.bounds
                 
-                # TODO: Add 5mm padding (can be changed later)
-                padding = 5
-                min_x -= padding
-                min_y -= padding
-                max_x += padding
-                max_y += padding
+                # TODO: Remove 5mm padding (can be changed later)
+                # padding = 5
+                # min_x -= padding
+                # min_y -= padding
+                # max_x += padding
+                # max_y += padding
                 
                 padded_box = [
                     (min_x, min_y), (max_x, min_y), 

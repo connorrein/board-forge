@@ -59,8 +59,8 @@ def apply_full_rotation(design: Design) -> Design:
     return Design(design.slots[:idx] + [rotated] + design.slots[idx + 1:])
 # end TODO
 
-# TODO: Added this new function to check for >=5mm distance between slots
-def has_minimum_distance(design: Design, min_distance=5.0) -> bool:
+# TODO: Added this new function to check for >=10mm distance between slots
+def has_minimum_distance(design: Design, min_distance=10.0) -> bool:
     """Check if all slots maintain a minimum distance from each other"""
     slots = design.slots
     for i in range(len(slots)):
@@ -70,7 +70,6 @@ def has_minimum_distance(design: Design, min_distance=5.0) -> bool:
                 return False
     return True
 # end TODO
-
 
 def apply_random_rotation(design: Design) -> Design:
     # TODO: increase rotation amount
@@ -122,7 +121,7 @@ def apply_random_action(design: Design, phase="explore") -> Design:
 # end TODO
 
 
-def optimize(initial_design: Design, iterations=10000, alpha=0.99, min_distance=3.0) -> Design:
+def optimize(initial_design: Design, iterations=10000, alpha=0.99, min_distance=10.0) -> Design:
     design = initial_design
     
     # TODO: add tracking of best design

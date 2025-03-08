@@ -374,7 +374,7 @@ class GamePieceOrganizerApp:
             return
             
         try:
-            is_valid = self.design.is_valid()
+            is_valid = self.design.is_valid
             if is_valid:
                 messagebox.showinfo("Validation", "Design is valid! No overlapping slots.")
             else:
