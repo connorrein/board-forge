@@ -40,16 +40,16 @@ def piece_dims(image_file, width = 19.05):
             (blbrX, blbrY) = midpoint(bl, br)
             (tlblX, tlblY) = midpoint(tl, bl)
             (trbrX, trbrY) = midpoint(tr, br)
-
-            cv2.circle(orig, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
-            cv2.circle(orig, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
-            cv2.circle(orig, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
-            cv2.circle(orig, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
-            # draw lines between the midpoints
-            cv2.line(orig, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)),
-                (255, 0, 255), 2)
-            cv2.line(orig, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)),
-                (255, 0, 255), 2)
+            if disp:
+                cv2.circle(orig, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
+                cv2.circle(orig, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
+                cv2.circle(orig, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
+                cv2.circle(orig, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
+                # draw lines between the midpoints
+                cv2.line(orig, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)),
+                    (255, 0, 255), 2)
+                cv2.line(orig, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)),
+                    (255, 0, 255), 2)
 
             dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
             dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
@@ -60,14 +60,16 @@ def piece_dims(image_file, width = 19.05):
             dimA = dA / pixelsPerMetric
             dimB = dB / pixelsPerMetric
             dims.append((dimA, dimB))
-            cv2.putText(orig, "{:.1f}mm".format(dimA),
-		(int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
-		0.65, (255, 255, 255), 2)
-            cv2.putText(orig, "{:.1f}mm".format(dimB),
-                (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
-                0.65, (255, 255, 255), 2)
-            cv2.imshow("Image", orig)
-            cv2.waitKey(0)
+
+            if disp:
+                cv2.putText(orig, "{:.1f}mm".format(dimA),
+            (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
+            0.65, (255, 255, 255), 2)
+                cv2.putText(orig, "{:.1f}mm".format(dimB),
+                    (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.65, (255, 255, 255), 2)
+                cv2.imshow("Image", orig)
+                cv2.waitKey(0)
     return dims
             
             
