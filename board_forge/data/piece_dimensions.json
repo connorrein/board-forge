@@ -1,0 +1,27 @@
+[
+    {
+        "name": "playing_card",
+        "width": 64,
+        "height": 89
+    },
+    {
+        "name": "die",
+        "width": 16,
+        "height": 16
+    },
+    {
+        "name": "catan_city",
+        "width": 19,
+        "height": 10
+    },
+    {
+        "name": "catan_settlement",
+        "width": 14,
+        "height": 10
+    },
+    {
+        "name": "catan_road",
+        "width": 25,
+        "height": 5
+    }
+]
