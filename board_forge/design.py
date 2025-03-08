@@ -20,12 +20,12 @@ class Design:
 
     @property
     def is_valid(self) -> bool:
-        # Check slots don't overlap
-        for i, slot1 in enumerate(self.slots):
-            for slot2 in self.slots[i + 1:]:
-                if slot1.intersects(slot2):
+        """Check if all slots maintain a minimum distance from each other"""
+        min_distance = 10.0
+        for i in range(len(self.slots)):
+            for j in range(i + 1, len(self.slots)):
+                if self.slots[i].distance(self.slots[j]) < min_distance:
                     return False
-
         return True
 
 
