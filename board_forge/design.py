@@ -57,5 +57,27 @@ class Design:
                 stroke='black',
                 stroke_width=stroke_width
             ))
+        
+        try:
+            # DEBUGGING
+            svg_string = dwg.tostring()
+            print(f"SVG string length: {len(svg_string)}")
+            
+            print(f"SVG start: {svg_string[:100]}")
+        except Exception as e:
+            print(f"Error generating SVG string: {e}")
+            
+        original_saveas = dwg.saveas
+        def debug_saveas(filepath):
+            print(f"saveas called with filepath: {filepath}")
+            try:
+                result = original_saveas(filepath)
+                print(f"saveas returned: {result}")
+                return result
+            except Exception as e:
+                print(f"saveas failed with error: {e}")
+                raise
+        
+        dwg.saveas = debug_saveas
 
         return dwg
