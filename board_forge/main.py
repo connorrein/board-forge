@@ -130,31 +130,31 @@ class GamePieceOrganizerApp:
         dim_frame = ttk.Frame(board_controls)
         dim_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        ttk.Label(dim_frame, text="Guide Width:").grid(row=0, column=0, sticky=tk.W)
-        self.width_var = tk.IntVar(value=self.board_width)
-        width_entry = ttk.Spinbox(
-            dim_frame,
-            from_=100,
-            to=1000,
-            increment=10,
-            textvariable=self.width_var,
-            width=5,
-            command=self.update_guide_dimensions
-        )
-        width_entry.grid(row=0, column=1, padx=5)
+        # ttk.Label(dim_frame, text="Guide Width:").grid(row=0, column=0, sticky=tk.W)
+        #self.width_var = tk.IntVar(value=self.board_width)
+        #width_entry = ttk.Spinbox(
+        #    dim_frame,
+        #    from_=100,
+        #    to=1000,
+        #    increment=10,
+        #    textvariable=self.width_var,
+        #    width=5,
+        #    command=self.update_guide_dimensions
+        #)
+        #width_entry.grid(row=0, column=1, padx=5)
         
-        ttk.Label(dim_frame, text="Guide Height:").grid(row=1, column=0, sticky=tk.W)
-        self.height_var = tk.IntVar(value=self.board_height)
-        height_entry = ttk.Spinbox(
-            dim_frame,
-            from_=100,
-            to=1000,
-            increment=10,
-            textvariable=self.height_var,
-            width=5,
-            command=self.update_guide_dimensions
-        )
-        height_entry.grid(row=1, column=1, padx=5)
+        # ttk.Label(dim_frame, text="Guide Height:").grid(row=1, column=0, sticky=tk.W)
+        # self.height_var = tk.IntVar(value=self.board_height)
+        # height_entry = ttk.Spinbox(
+        #    dim_frame,
+        #    from_=100,
+        #    to=1000,
+        #    increment=10,
+        #    textvariable=self.height_var,
+        #    width=5,
+        #    command=self.update_guide_dimensions
+        #)
+        #height_entry.grid(row=1, column=1, padx=5)
         
         # Rotation Controls
         rotation_frame = ttk.Frame(board_controls)
