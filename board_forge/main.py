@@ -20,22 +20,19 @@ class GamePieceOrganizerApp:
         
         # Load and set the logo/icon
         self.design = Design(slots=[])
-        
-        # Store board dimensions separately (for visualization purposes)
+
         self.board_width = 300
         self.board_height = 400
         
         self.main_frame = ttk.Frame(root)
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        # Create a header frame for the logo
+    
         self.header_frame = ttk.Frame(self.main_frame)
         self.header_frame.pack(fill=tk.X, pady=(0, 10))
         
         try:
             logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                 "board_forge", "data", "logo.png")
-            # Alternative path if the above doesn't work
             if not os.path.exists(logo_path):
                 logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "data", "logo.png")
@@ -46,18 +43,11 @@ class GamePieceOrganizerApp:
             logo = tk.PhotoImage(file=logo_path)
             root.iconphoto(True, logo)  # Set window icon
             
-            # Resize the logo image to be much smaller
-            # Method 1: Using subsample to make the image smaller
-            self.logo_image = self.logo_image.subsample(10, 10)  # Reduce to 1/8 of original size
+            self.logo_image = self.logo_image.subsample(13, 13)  # Reduce to 1/8 of original size
             
             # Create a label to display the logo
             logo_label = ttk.Label(self.header_frame, image=self.logo_image)
             logo_label.pack(side=tk.LEFT, padx=5)
-            
-            # Add a title label next to the logo
-            # title_label = ttk.Label(self.header_frame, text="Game Piece Organizer",
-            #                    font=('Helvetica', 16, 'bold'))
-            #title_label.pack(side=tk.LEFT, padx=10)
         except Exception as e:
             print(f"Error loading logo: {e}")
         
