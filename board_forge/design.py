@@ -11,22 +11,21 @@ SLOT_PADDING = 1  # 1mm padding for slots
 @dataclass
 class Design:
     slots: List[Polygon]
-    pieces: List[Piece]
 
     def get_padded_slots(self) -> List[Piece]:
         """Return slots with added padding of SLOT_PADDING mm on each side"""
-        return [Piece(piece.name, piece.shape.buffer(SLOT_PADDING)) for piece in self.pieces]
+        return [s.buffer(SLOT_PADDING) for s in self.slots]
 
     @property
     def bounding_box(self) -> Polygon:
         # Use padded slots to calculate the bounding box
         padded_slots = self.get_padded_slots()
         # Extract the shape objects from the Piece objects
-        slot_shapes = [piece.shape for piece in padded_slots]
+        slot_shapes = [slot for slot in padded_slots]
         if not slot_shapes:  # Handle empty case
             return box(0, 0, 10, 10)  # Default small box
         unified = unary_union(slot_shapes)
-        unified = unary_union([p.shape for p in padded_slots])
+        unified = unary_union(self.slots)
         min_x, min_y, max_x, max_y = unified.bounds
         return box(min_x - PADDING, min_y - PADDING, max_x + PADDING, max_y + PADDING)
 
@@ -35,9 +34,9 @@ class Design:
         """Check if all slots maintain a minimum distance from each other,
         taking into account the SLOT_PADDING applied to each slot"""
         min_distance = 10.0
-        for i in range(len(self.pieces)):
-            for j in range(i + 1, len(self.pieces)):
-                if self.pieces[i].shape.distance(self.pieces[j].shape) < min_distance:
+        for i in range(len(self.slots)):
+            for j in range(i + 1, len(self.slots)):
+                if self.slots[i].distance(self.slots[j]) < min_distance:
                     return False
         return True
 
@@ -67,9 +66,9 @@ class Design:
             stroke_width=stroke_width
         ))
         # Slots
-        for piece in self.pieces:
+        for slot in self.slots:
             dwg.add(dwg.polygon(
-                points=list(piece.shape.exterior.coords),
+                points=list(slot.exterior.coords),
                 fill='none',
                 stroke='black',
                 stroke_width=stroke_width

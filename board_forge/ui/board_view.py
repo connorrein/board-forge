@@ -37,13 +37,13 @@ class BoardCanvas(tk.Canvas):
         self.slot_objects = {}
         self.slot_centers = {}
         
-        for i, piece in enumerate(self.design.pieces):
+        for i, slot in enumerate(self.design.slots):
             # Calculate center for rotation
-            centroid = piece.shape.centroid
+            centroid = slot.centroid
             self.slot_centers[i] = (centroid.x, centroid.y)
             
             coords = []
-            for x, y in piece.shape.exterior.coords[:-1]:
+            for x, y in slot.exterior.coords[:-1]:
                 coords.extend([x + 10, y + 10])
             
             polygon_id = self.create_polygon(
@@ -57,7 +57,7 @@ class BoardCanvas(tk.Canvas):
         
         # If slots exist, draw the calculated bounding box with NO? padding 
         # since we need to have a border at edge of the actual svg
-        if self.design.pieces:
+        if self.design.slots:
             try:
                 # Use the Design's bounding_box property which includes proper padding
                 bb = self.design.bounding_box
@@ -174,10 +174,10 @@ class BoardCanvas(tk.Canvas):
                 points.append((coords[i] - 10, coords[i+1] - 10))
             
             # Update the actual slot in the design
-            if slot_index < len(self.design.pieces):
-                self.design.pieces[slot_index].shape = Polygon(points)
+            if slot_index < len(self.design.slots):
+                self.design.slots[slot_index] = Polygon(points)
                 
-                centroid = self.design.pieces[slot_index].shape.centroid
+                centroid = self.design.slots[slot_index].centroid
                 self.slot_centers[slot_index] = (centroid.x, centroid.y)
                 
                 temp_selected = self.selected_slot
@@ -198,14 +198,14 @@ class BoardCanvas(tk.Canvas):
             
         slot_index = self.selected_slot
         
-        if slot_index < len(self.design.pieces):
+        if slot_index < len(self.design.slots):
             try:
-                current_polygon = self.design.pieces[slot_index]
-                center_x, center_y = self.slot_centers.get(slot_index, current_polygon.shape.centroid.coords[0])
-                rotated_shape = shapely_rotate(current_polygon.shape, angle, origin=(center_x, center_y))
+                current_polygon = self.design.slots[slot_index]
+                center_x, center_y = self.slot_centers.get(slot_index, current_polygon.centroid.coords[0])
+                rotated_shape = shapely_rotate(current_polygon, angle, origin=(center_x, center_y))
 
                 # update the view
-                self.design.pieces[slot_index].shape = rotated_shape
+                self.design.slots[slot_index] = rotated_shape
                 temp_selected = self.selected_slot
                 self.update_view()
                 
@@ -224,8 +224,8 @@ class BoardCanvas(tk.Canvas):
     def add_slot(self, polygon):
         """Add a new slot to the design"""
         if self.design:
-            self.design.pieces.append(polygon)
+            self.design.slots.append(polygon)
             self.update_view()
             
             # DEBUG
-            print(f"Added new slot, total: {len(self.design.pieces)}")
+            print(f"Added new slot, total: {len(self.design.slots)}")
