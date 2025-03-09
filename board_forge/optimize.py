@@ -42,7 +42,7 @@ def group_similar_shapes(slots):
     return list(groups.values())
 
 def constrain_to_canvas(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT):
-    """Ensure all slots are within the canvas bounds with margin"""
+    """Ensure all slots are within the canvas bounds with margin WITHOUT scaling"""
     if not design.slots:
         return design
         
@@ -83,27 +83,36 @@ def constrain_to_canvas(design: Design, canvas_width=CANVAS_WIDTH, canvas_height
     width = bounds[2] - bounds[0]
     height = bounds[3] - bounds[1]
     
-    # If the design is still too large, scale it down
+    # MODIFIED: Instead of scaling, we'll just ensure all slots are within the canvas bounds
+    # If the design is still too large, we'll only translate pieces that are outside
     if width > canvas_width - 2*CANVAS_MARGIN or height > canvas_height - 2*CANVAS_MARGIN:
-        scale_x = (canvas_width - 2*CANVAS_MARGIN) / width if width > canvas_width - 2*CANVAS_MARGIN else 1
-        scale_y = (canvas_height - 2*CANVAS_MARGIN) / height if height > canvas_height - 2*CANVAS_MARGIN else 1
-        
-        # Use the smaller scale to maintain aspect ratio
-        scale = min(scale_x, scale_y) * 0.95  # 5% extra margin
-        
-        # Scale all pieces around center of the canvas
-        center_x = canvas_width / 2
-        center_y = canvas_height / 2
-        
         new_slots = []
         for slot in slots:
-            # Translate to origin, scale, then translate back
-            moved_to_origin = translate(slot, -center_x, -center_y)
-            # Use polygon coordinates and scale manually
-            coords = list(moved_to_origin.exterior.coords)
-            scaled_coords = [(x * scale, y * scale) for x, y in coords]
-            scaled = Polygon(scaled_coords)
-            new_slots.append(translate(scaled, center_x, center_y))
+            slot_bounds = slot.bounds
+            
+            # Check if this slot is outside the canvas
+            adjust_x = 0
+            adjust_y = 0
+            
+            # Adjust position if outside left boundary
+            if slot_bounds[0] < CANVAS_MARGIN:
+                adjust_x = CANVAS_MARGIN - slot_bounds[0]
+            # Adjust position if outside right boundary
+            elif slot_bounds[2] > canvas_width - CANVAS_MARGIN:
+                adjust_x = (canvas_width - CANVAS_MARGIN) - slot_bounds[2]
+                
+            # Adjust position if outside top boundary
+            if slot_bounds[1] < CANVAS_MARGIN:
+                adjust_y = CANVAS_MARGIN - slot_bounds[1]
+            # Adjust position if outside bottom boundary
+            elif slot_bounds[3] > canvas_height - CANVAS_MARGIN:
+                adjust_y = (canvas_height - CANVAS_MARGIN) - slot_bounds[3]
+                
+            # Apply adjustments if needed
+            if adjust_x != 0 or adjust_y != 0:
+                new_slots.append(translate(slot, adjust_x, adjust_y))
+            else:
+                new_slots.append(slot)
         
         design = Design(new_slots)
     
@@ -162,10 +171,12 @@ def separate_overlapping_pieces(design: Design, min_distance=MIN_SPACING, canvas
 
 
 def evaluate(design: Design) -> float:
+    """Evaluate the design by its bounding box area"""
     return design.bounding_box.area
 
 
 def apply_random_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
+    """Move a random piece by a random amount"""
     amount = 15  # Movement amount
     idx = random.randrange(len(design.slots))
     move_x = random.uniform(-amount, amount)
@@ -226,7 +237,7 @@ def apply_directed_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas
 
 
 def align_similar_shapes(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
-    """Group and align similar shapes together"""
+    """Group and align similar shapes together WITHOUT scaling them"""
     if len(design.slots) < 2:
         return design
     
@@ -289,7 +300,7 @@ def align_similar_shapes(design: Design, canvas_width=CANVAS_WIDTH, canvas_heigh
 
 
 def arrange_in_compact_grid(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
-    """Arrange pieces in a more compact grid layout, preserving their rotation"""
+    """Arrange pieces in a more compact grid layout, preserving their rotation and size"""
     if len(design.slots) < 2:
         return design
     
@@ -297,14 +308,10 @@ def arrange_in_compact_grid(design: Design, canvas_width=CANVAS_WIDTH, canvas_he
     slots = design.slots.copy()
     slots_with_centroids = [(i, slot.centroid.x, slot.centroid.y) for i, slot in enumerate(slots)]
     
-    # Get approximate dimensions of a typical piece
+    # Get actual dimensions of each piece without averaging
     bounds = [slot.bounds for slot in slots]
-    avg_width = sum(b[2] - b[0] for b in bounds) / len(bounds)
-    avg_height = sum(b[3] - b[1] for b in bounds) / len(bounds)
-    
-    # Calculate spacing with minimum distance
-    spacing_x = avg_width + MIN_SPACING
-    spacing_y = avg_height + MIN_SPACING
+    widths = [b[2] - b[0] for b in bounds]
+    heights = [b[3] - b[1] for b in bounds]
     
     # Sort by y first (row), then by x (column)
     slots_with_centroids.sort(key=lambda item: (item[2], item[1]))
@@ -313,24 +320,44 @@ def arrange_in_compact_grid(design: Design, canvas_width=CANVAS_WIDTH, canvas_he
     new_slots = [None] * len(slots)  # Preallocate list
     start_x, start_y = CANVAS_MARGIN, CANVAS_MARGIN  # Starting position with margin
     
-    # Calculate optimal number of columns based on canvas width
+    # Calculate optimal number of columns based on canvas width and the actual widths
     available_width = canvas_width - 2*CANVAS_MARGIN
-    cols = max(1, min(int(available_width / spacing_x), int(np.sqrt(len(slots)))))
+    max_width = max(widths) if widths else MIN_SPACING
+    cols = max(1, min(int(available_width / (max_width + MIN_SPACING)), int(np.sqrt(len(slots)))))
     
+    # Keep track of the width and height used in each row and column
+    col_widths = [0] * cols
+    row_heights = [0] * ((len(slots) + cols - 1) // cols)  # Ceiling division
+    
+    # First pass: determine widths and heights
     for i, (idx, _, _) in enumerate(slots_with_centroids):
-        # Calculate new grid position
         row = i // cols
         col = i % cols
         
-        # Get slot bounds to calculate offset
+        slot_width = widths[idx]
+        slot_height = heights[idx]
+        
+        col_widths[col] = max(col_widths[col], slot_width)
+        row_heights[row] = max(row_heights[row], slot_height)
+    
+    # Second pass: position pieces using determined dimensions
+    for i, (idx, _, _) in enumerate(slots_with_centroids):
+        row = i // cols
+        col = i % cols
+        
         old_slot = slots[idx]
-        min_x, min_y, max_x, max_y = old_slot.bounds
+        min_x, min_y, _, _ = old_slot.bounds
+        
+        # Calculate position based on column widths and row heights
+        target_x = start_x
+        for c in range(col):
+            target_x += col_widths[c] + MIN_SPACING
+            
+        target_y = start_y
+        for r in range(row):
+            target_y += row_heights[r] + MIN_SPACING
         
         # Calculate translation to new position
-        target_x = start_x + col * spacing_x
-        target_y = start_y + row * spacing_y
-        
-        # Calculate offset needed to move the top-left corner to the target position
         offset_x = target_x - min_x
         offset_y = target_y - min_y
         
@@ -521,12 +548,24 @@ def fix_isolated_piece(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=
 
 
 def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotation=True, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
-    """Optimize the design using simulated annealing"""
+    """Optimize the design using simulated annealing, preserving original shapes"""
     # Make a clean copy of the initial design
     design = Design([slot for slot in initial_design.slots])
     
+    # Store original shapes to verify no scaling occurs
+    original_areas = {i: slot.area for i, slot in enumerate(design.slots)}
+    
     # Ensure design is within canvas bounds to start with
     design = constrain_to_canvas(design, canvas_width, canvas_height)
+    
+    # Verify no scaling occurred during initial constraint
+    for i, slot in enumerate(design.slots):
+        current_area = slot.area
+        # If areas differ significantly, restore original shape
+        if abs(current_area - original_areas[i]) / original_areas[i] > 0.01:  # 1% tolerance
+            print(f"Warning: Initial constrain changed slot {i} shape. Restoring.")
+            design = initial_design  # Use the original design as fallback
+            break
     
     # Check for outlier pieces and fix them first
     design = fix_isolated_piece(design, canvas_width, canvas_height)
@@ -556,6 +595,16 @@ def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotatio
     no_improvement_count = 0
     max_no_improvement = iterations * 0.3  # Allow 30% of iterations without improvement
     
+    # Verification function to ensure shapes don't change
+    def verify_shapes(design, original_areas):
+        """Verify that no shapes have been scaled"""
+        for i, slot in enumerate(design.slots):
+            current_area = slot.area
+            # If areas differ significantly, return False
+            if abs(current_area - original_areas[i]) / original_areas[i] > 0.01:  # 1% tolerance
+                return False
+        return True
+    
     for i in range(iterations):
         if no_improvement_count > max_no_improvement:
             print("Optimization stopped early due to no improvement")
@@ -568,6 +617,10 @@ def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotatio
         
         # Double-check the design is within canvas bounds
         design_new = constrain_to_canvas(design_new, canvas_width, canvas_height)
+        
+        # IMPORTANT: Verify no scaling has occurred
+        if not verify_shapes(design_new, original_areas):
+            continue  # Skip this iteration if shapes have changed
         
         # Check if the new design is valid and evaluate it
         valid_new = design_new.is_valid
@@ -590,7 +643,9 @@ def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotatio
         else:
             # Try to fix invalid design
             fixed_design = separate_overlapping_pieces(design_new, MIN_SPACING, canvas_width, canvas_height)
-            if fixed_design.is_valid:
+            
+            # Verify fixed design maintains original shapes
+            if fixed_design.is_valid and verify_shapes(fixed_design, original_areas):
                 score_old = evaluate(design)
                 score_new = evaluate(fixed_design)
                 
@@ -617,15 +672,9 @@ def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotatio
     # If there's a piece far away from others, bring it closer
     best_design = fix_isolated_piece(best_design, canvas_width, canvas_height)
     
-    # If we didn't improve at all, try one more specialized arrangement based on rotation preference
-    if best_score >= evaluate(initial_design) and len(initial_design.slots) > 1:
-        if allow_rotation:
-            grid_design = arrange_in_compact_grid(initial_design, canvas_width, canvas_height)
-            if grid_design.is_valid and evaluate(grid_design) < best_score:
-                return grid_design
-        else:
-            aligned_design = align_similar_shapes(initial_design, canvas_width, canvas_height)
-            if aligned_design.is_valid and evaluate(aligned_design) < best_score:
-                return aligned_design
+    # Final verification that shapes haven't changed
+    if not verify_shapes(best_design, original_areas):
+        print("Warning: Final design has scaled pieces. Restoring original design.")
+        return initial_design
     
     return best_design
