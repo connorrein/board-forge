@@ -424,7 +424,6 @@ def apply_random_rotation(design: Design, canvas_width=CANVAS_WIDTH, canvas_heig
     result = Design(design.slots[:idx] + [rotated] + design.slots[idx + 1:])
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
-
 def apply_random_action(design: Design, phase="explore", allow_rotation=True, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Apply a random transformation to the design based on the current phase"""
     # Handle very large or outlier pieces by reorganizing
