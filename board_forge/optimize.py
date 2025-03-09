@@ -3,6 +3,56 @@ import numpy as np
 from shapely.affinity import translate, rotate
 from board_forge.design import Design
 
+def separate_overlapping_pieces(design: Design, min_distance=10) -> Design:
+    """Move overlapping or too-close pieces apart to create a valid starting point"""
+    modified = False
+    slots = design.slots.copy()
+    
+    # Try up to 50 iterations to separate pieces
+    for _ in range(50):
+        valid = True
+        
+        # Check each pair of slots
+        for i in range(len(slots)):
+            for j in range(i + 1, len(slots)):
+                distance = slots[i].distance(slots[j])
+                
+                # If too close or overlapping
+                if distance < min_distance:
+                    valid = False
+                    
+                    # Get centroids
+                    c1 = slots[i].centroid
+                    c2 = slots[j].centroid
+                    
+                    # Direction vector between centroids
+                    dx = c2.x - c1.x
+                    dy = c2.y - c1.y
+                    
+                    # Handle case where centroids are at the same spot
+                    if abs(dx) < 0.001 and abs(dy) < 0.001:
+                        dx = 1.0  # Default direction
+                        dy = 0.0
+                    
+                    # Normalize
+                    length = (dx**2 + dy**2)**0.5
+                    dx /= length
+                    dy /= length
+                    
+                    # Move amount (more if overlapping)
+                    move_amount = min_distance - distance + 2  # add 2mm extra buffer
+                    
+                    # Move both pieces in opposite directions
+                    slots[i] = translate(slots[i], -dx * move_amount/2, -dy * move_amount/2)
+                    slots[j] = translate(slots[j], dx * move_amount/2, dy * move_amount/2)
+                    modified = True
+        
+        # If all pieces are valid, we're done
+        if valid:
+            break
+    
+    return Design(slots)
+
 
 def evaluate(design: Design) -> float:
     return design.bounding_box.area
@@ -92,6 +142,10 @@ def apply_random_action(design: Design, phase="explore") -> Design:
 
 
 def optimize(initial_design: Design, iterations=10000, alpha=0.99) -> Design:
+    # Added for optimize to work when overlapping/too close
+    if not initial_design.is_valid:
+        initial_design = separate_overlapping_pieces(initial_design)
+    
     design = initial_design
 
     best_design = initial_design
