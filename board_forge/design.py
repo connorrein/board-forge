@@ -10,6 +10,7 @@ SLOT_PADDING = 1  # 1mm padding for slots
 
 @dataclass
 class Design:
+    slots: List[Polygon]
     pieces: List[Piece]
 
     def get_padded_slots(self) -> List[Piece]:

@@ -253,9 +253,9 @@ class GamePieceOrganizerApp:
             
             # Create the piece and add to the pieces list
             piece = Piece(name="Unnamed Piece", shape=polygon)
-            self.design.pieces.append(piece)
-            self.piece_list.insert(tk.END, piece.name)
-            
+            if piece not in self.design.pieces:
+                self.design.pieces.append(piece)
+                self.piece_list.insert(tk.END, piece.name)
             self.board.update_view()
             self.status_var.set(f"Added custom polygon with {len(polygon.exterior.coords)} points")
         except Exception as e:
