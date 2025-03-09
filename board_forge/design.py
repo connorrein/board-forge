@@ -20,7 +20,11 @@ class Design:
     def bounding_box(self) -> Polygon:
         # Use padded slots to calculate the bounding box
         padded_slots = self.get_padded_slots()
-        unified = unary_union(padded_slots)
+        # Extract the shape objects from the Piece objects
+        slot_shapes = [piece.shape for piece in padded_slots]
+        if not slot_shapes:  # Handle empty case
+            return box(0, 0, 10, 10)  # Default small box
+        unified = unary_union(slot_shapes)
         min_x, min_y, max_x, max_y = unified.bounds
         return box(min_x - PADDING, min_y - PADDING, max_x + PADDING, max_y + PADDING)
 

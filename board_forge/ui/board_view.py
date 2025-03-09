@@ -59,21 +59,15 @@ class BoardCanvas(tk.Canvas):
         # since we need to have a border at edge of the actual svg
         if self.design.pieces:
             try:
+                # Use the Design's bounding_box property which includes proper padding
                 bb = self.design.bounding_box
                 
                 min_x, min_y, max_x, max_y = bb.bounds
-                
-                # TODO: Remove 5mm padding (can be changed later)
-                # padding = 5
-                # min_x -= padding
-                # min_y -= padding
-                # max_x += padding
-                # max_y += padding
-                
+                                
                 padded_box = [
-                    (min_x, min_y), (max_x, min_y), 
-                    (max_x, max_y), (min_x, max_y), 
-                    (min_x, min_y)
+                        (min_x, min_y), (max_x, min_y), 
+                        (max_x, max_y), (min_x, max_y), 
+                        (min_x, min_y)
                 ]
                 
                 coords = []
@@ -207,11 +201,11 @@ class BoardCanvas(tk.Canvas):
         if slot_index < len(self.design.pieces):
             try:
                 current_polygon = self.design.pieces[slot_index]
-                center_x, center_y = self.slot_centers.get(slot_index, current_polygon.centroid.coords[0])
-                rotated_polygon = shapely_rotate(current_polygon, angle, origin=(center_x, center_y))
-    
+                center_x, center_y = self.slot_centers.get(slot_index, current_polygon.shape.centroid.coords[0])
+                rotated_shape = shapely_rotate(current_polygon.shape, angle, origin=(center_x, center_y))
+
                 # update the view
-                self.design.pieces[slot_index] = rotated_polygon
+                self.design.pieces[slot_index].shape = rotated_shape
                 temp_selected = self.selected_slot
                 self.update_view()
                 

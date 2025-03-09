@@ -108,7 +108,6 @@ class GamePieceOrganizerApp:
                 piece = Piece(f'{name} {i}', [(0,0), (width, 0), (height, 0), (width, height)])
                 self.design.append(piece)
                 self.piece_list.insert(tk.END, piece.name)
-
     
     def rename_piece(self, event=None):
         selected_index = self.piece_list.curselection()
@@ -180,14 +179,47 @@ class GamePieceOrganizerApp:
             # Create the polygon
             polygon = Polygon(scaled_points)
             
+            # Find a good position for the new polygon
+            # Calculate the offset for the new piece
+            # First, find the bounds of the new polygon
+            min_x, min_y, max_x, max_y = polygon.bounds
+            width = max_x - min_x
+            height = max_y - min_y
+            
+            # Calculate the grid size for placement
+            grid_size = max(width, height) + 10  # Add some spacing
+            
+            # Get the canvas dimensions
+            canvas_width = self.board.winfo_width() or 600  # Default if not yet rendered
+            canvas_height = self.board.winfo_height() or 500  # Default if not yet rendered
+            
+            # Maximum number of pieces per row based on canvas width
+            max_per_row = max(1, int((canvas_width - 40) / grid_size))
+            
+            # Calculate position based on the number of existing pieces
+            slot_index = len(self.design.pieces)
+            row = slot_index // max_per_row
+            col = slot_index % max_per_row
+            
+            # Calculate the translation needed
+            # Start with a consistent initial position for all pieces
+            offset_x = 20 + col * grid_size  # Start with left margin
+            offset_y = 20 + row * grid_size  # Start with top margin
+            
+            # Move the polygon to the absolute position (not relative to its min bounds)
+            from shapely.affinity import translate
+            polygon = translate(polygon, offset_x - min_x, offset_y - min_y)
+            
+            # Create the piece and add to the pieces list
             piece = Piece(name="Unnamed Piece", shape=polygon)
             self.design.pieces.append(piece)
             self.piece_list.insert(tk.END, piece.name)
+            
             self.board.update_view()
             self.status_var.set(f"Added custom polygon with {len(points)} points (scale: {scale})")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add polygon: {str(e)}")
-    
+        
     def create_board_controls(self):
         """Create controls for manipulating the board"""
         board_controls = ttk.LabelFrame(self.right_frame, text="Board Controls")
@@ -196,32 +228,6 @@ class GamePieceOrganizerApp:
         # Visual guide dimensions
         dim_frame = ttk.Frame(board_controls)
         dim_frame.pack(fill=tk.X, padx=5, pady=5)
-        
-        # ttk.Label(dim_frame, text="Guide Width:").grid(row=0, column=0, sticky=tk.W)
-        #self.width_var = tk.IntVar(value=self.board_width)
-        #width_entry = ttk.Spinbox(
-        #    dim_frame,
-        #    from_=100,
-        #    to=1000,
-        #    increment=10,
-        #    textvariable=self.width_var,
-        #    width=5,
-        #    command=self.update_guide_dimensions
-        #)
-        #width_entry.grid(row=0, column=1, padx=5)
-        
-        # ttk.Label(dim_frame, text="Guide Height:").grid(row=1, column=0, sticky=tk.W)
-        # self.height_var = tk.IntVar(value=self.board_height)
-        # height_entry = ttk.Spinbox(
-        #    dim_frame,
-        #    from_=100,
-        #    to=1000,
-        #    increment=10,
-        #    textvariable=self.height_var,
-        #    width=5,
-        #    command=self.update_guide_dimensions
-        #)
-        #height_entry.grid(row=1, column=1, padx=5)
         
         # Rotation Controls
         rotation_frame = ttk.Frame(board_controls)
@@ -277,6 +283,15 @@ class GamePieceOrganizerApp:
         """Create controls for optimization"""
         opt_frame = ttk.LabelFrame(self.right_frame, text="Optimization")
         opt_frame.pack(fill=tk.X)
+        
+        # Add checkbox for rotation control
+        self.allow_rotation_var = tk.BooleanVar(value=True)
+        rotation_check = ttk.Checkbutton(
+            opt_frame,
+            text="Allow rotation during optimization",
+            variable=self.allow_rotation_var
+        )
+        rotation_check.pack(fill=tk.X, padx=5, pady=5)
         
         # Button to run optimization
         optimize_btn = ttk.Button(
@@ -367,7 +382,7 @@ class GamePieceOrganizerApp:
         if not self.design.pieces:
             messagebox.showinfo("Error", "No slots to optimize")
             return
-        
+    
         try:
             # Import optimization module
             import board_forge.optimize as optimize_module
@@ -384,13 +399,17 @@ class GamePieceOrganizerApp:
             
             # Make a copy of the current design
             current_design = self.design
-            print(f"Current design: {current_design}, slots: {len(current_design.slots)}")
+            print(f"Current design: {current_design}, slots: {len(current_design.pieces)}")
+
+            # Get rotation preference
+            allow_rotation = self.allow_rotation_var.get()
             
             # Run the optimization with explicit arguments
             optimized_design = optimize_func(
                 initial_design=current_design, 
                 iterations=1000,  # Reduced iterations for testing
-                alpha=0.99
+                alpha=0.99,
+                allow_rotation=allow_rotation  # Pass the rotation preference
             )
             
             print(f"Optimization completed, result: {optimized_design}")
@@ -406,7 +425,8 @@ class GamePieceOrganizerApp:
             if hasattr(self.board, 'selected_slot'):
                 self.board.selected_slot = None
             
-            self.status_var.set("Optimization complete! Area minimized.")
+            rotation_status = "with" if allow_rotation else "without"
+            self.status_var.set(f"Optimization complete {rotation_status} rotation! Area minimized.")
         except ImportError as e:
             error_msg = f"Import error: {e}"
             print(error_msg)
