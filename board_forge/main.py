@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, filedialog
+from tkinter import ttk, messagebox, simpledialog, filedialog, Menu
 import os
 import sys
 import math
@@ -69,6 +69,7 @@ class GamePieceOrganizerApp:
         self.board.set_app(self)
         
         # Create controls
+        self.context_menu = Menu(root, tearoff=0)
         self.piece_list = self.create_piece_display()
         self.create_piece_selector()
         self.create_board_controls()
@@ -86,29 +87,60 @@ class GamePieceOrganizerApp:
 
     def create_piece_display(self):
         display_frame = ttk.LabelFrame(self.right_frame, text="Piece List")
+
         display_frame.pack(fill=tk.X, pady=(0, 10))
         listbox = tk.Listbox(display_frame, width=40, height=10)
         listbox.pack(padx=20, pady=20)
-        listbox.bind("<Double-Button-1>", self.rename_piece)
+        listbox.bind("<Double-Button-1>", self.show_context_menu)
+
         
         for piece in self.design.pieces:
             listbox.insert(tk.END, piece.name)
 
         self.add_image_button = tk.Button(display_frame, text="Add from Image", command=self.add_from_image)
         self.add_image_button.pack(pady=5)
+        
+        self.context_menu.add_command(label="Rename", command=self.rename_piece)
+        self.context_menu.add_command(label="Delete", command=self.delete_selected)
+        self.context_menu.add_command(label="Make Copy", command=self.copy_selected)
 
         return listbox
+
+    def show_context_menu(self, event=None):
+        try:
+            print('here')
+            self.piece_list.selection_clear(0, tk.END)
+            self.piece_list.selection_set(self.piece_list.nearest(event.y))
+            self.context_menu.post(event.x_root, event.y_root)
+        except:
+            pass
     
     def add_from_image(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp")])
+        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png")])
         if file_path:
             name = file_path.split("/")[-1]  # Extracts filename
-            dims = piece_dims(name)
-            for i, width,height in enumerate(dims):
+            dims = piece_dims(file_path)
+            for i, (width,height) in enumerate(dims):
                 piece = Piece(f'{name} {i}', [(0,0), (width, 0), (height, 0), (width, height)])
-                self.design.append(piece)
+                self.design.pieces.append(piece)
                 self.piece_list.insert(tk.END, piece.name)
     
+    def delete_selected(self):
+        selected_index = self.piece_list.curselection()
+        if selected_index:
+            index = selected_index[0]
+            del self.design.pieces[index]
+            self.piece_list.delete(index)
+
+    def copy_selected(self):
+        selected_index = self.piece_list.curselection()
+        if selected_index:
+            index = selected_index[0]
+            piece = self.design.pieces[index]
+            copy_name = f"{piece.name} (Copy)"
+            piece_copy = Piece(copy_name, piece.shape)
+            self.design.pieces.append(piece_copy)
+            self.piece_list.insert(tk.END, piece_copy.name)
     def rename_piece(self, event=None):
         selected_index = self.piece_list.curselection()
         if selected_index:

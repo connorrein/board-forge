@@ -25,6 +25,7 @@ class Design:
         if not slot_shapes:  # Handle empty case
             return box(0, 0, 10, 10)  # Default small box
         unified = unary_union(slot_shapes)
+        unified = unary_union([p.shape for p in padded_slots])
         min_x, min_y, max_x, max_y = unified.bounds
         return box(min_x - PADDING, min_y - PADDING, max_x + PADDING, max_y + PADDING)
 
