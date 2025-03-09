@@ -7,12 +7,12 @@ import argparse
 import imutils
 import cv2
 
-disp = True
+disp = False
 
 def midpoint(ptA, ptB):
     return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
-def piece_dims(image_file, width = 19.05):
+def piece_dims(image_file, width = 19.05, num_pieces=-1):
     img = cv2.imread(image_file)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (7, 7), 0)

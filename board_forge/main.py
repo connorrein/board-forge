@@ -71,6 +71,7 @@ class GamePieceOrganizerApp:
         # Create controls
         self.context_menu = Menu(root, tearoff=0)
         self.piece_list = self.create_piece_display()
+        
         self.create_piece_selector()
         self.create_board_controls()
         self.create_optimization_controls()
@@ -97,18 +98,18 @@ class GamePieceOrganizerApp:
         for piece in self.design.pieces:
             listbox.insert(tk.END, piece.name)
 
-        self.add_image_button = tk.Button(display_frame, text="Add from Image", command=self.add_from_image)
+        self.add_image_button = tk.Button(display_frame, text="Add from File", command=self.add_from_image)
         self.add_image_button.pack(pady=5)
         
         self.context_menu.add_command(label="Rename", command=self.rename_piece)
         self.context_menu.add_command(label="Delete", command=self.delete_selected)
         self.context_menu.add_command(label="Make Copy", command=self.copy_selected)
+        self.context_menu.add_command(label="Add to board", command=self.add_selected)
 
         return listbox
 
     def show_context_menu(self, event=None):
         try:
-            print('here')
             self.piece_list.selection_clear(0, tk.END)
             self.piece_list.selection_set(self.piece_list.nearest(event.y))
             self.context_menu.post(event.x_root, event.y_root)
@@ -116,15 +117,22 @@ class GamePieceOrganizerApp:
             pass
     
     def add_from_image(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png")])
+        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.jpg")])
+        num_pieces = simpledialog.askinteger("Number of Piece Selection", "How many pieces in your image?")
         if file_path:
             name = file_path.split("/")[-1]  # Extracts filename
-            dims = piece_dims(file_path)
+            dims = piece_dims(file_path, num_pieces=num_pieces)
             for i, (width,height) in enumerate(dims):
                 piece = Piece(f'{name} {i}', [(0,0), (width, 0), (height, 0), (width, height)])
                 self.design.pieces.append(piece)
                 self.piece_list.insert(tk.END, piece.name)
     
+    def add_selected(self):
+        selected_index = self.piece_list.curselection()
+        if selected_index:
+            index = selected_index[0]
+            self.add_custom_polygon(custom=False, polygon=self.design.pieces[index].shape)
+
     def delete_selected(self):
         selected_index = self.piece_list.curselection()
         if selected_index:
@@ -141,6 +149,7 @@ class GamePieceOrganizerApp:
             piece_copy = Piece(copy_name, piece.shape)
             self.design.pieces.append(piece_copy)
             self.piece_list.insert(tk.END, piece_copy.name)
+
     def rename_piece(self, event=None):
         selected_index = self.piece_list.curselection()
         if selected_index:
@@ -190,27 +199,27 @@ class GamePieceOrganizerApp:
         )
         add_btn.pack(fill=tk.X, padx=5, pady=5)
         
-    def add_custom_polygon(self):
+    def add_custom_polygon(self, custom=True, polygon=None):
         """Add a custom polygon to the board based on user input"""
         try:
-            points_text = self.points_text.get("1.0", tk.END).strip()
-            
-            points = []
-            for line in points_text.split('\n'):
-                if line.strip():
-                    x, y = map(float, line.strip().split(','))
-                    points.append((x, y))
-            
-            if len(points) < 3:
-                messagebox.showinfo("Error", "A polygon needs at least 3 points")
-                return
+            if custom:
+                points_text = self.points_text.get("1.0", tk.END).strip()
                 
-            scale = self.scale_var.get()
-            scaled_points = [(x * scale, y * scale) for x, y in points]
-            
-            # Create the polygon
-            polygon = Polygon(scaled_points)
-            
+                points = []
+                for line in points_text.split('\n'):
+                    if line.strip():
+                        x, y = map(float, line.strip().split(','))
+                        points.append((x, y))
+                
+                if len(points) < 3:
+                    messagebox.showinfo("Error", "A polygon needs at least 3 points")
+                    return
+                    
+                scale = self.scale_var.get()
+                scaled_points = [(x * scale, y * scale) for x, y in points]
+                
+                # Create the polygon
+                polygon = Polygon(scaled_points)
             # Find a good position for the new polygon
             # Calculate the offset for the new piece
             # First, find the bounds of the new polygon
@@ -248,7 +257,7 @@ class GamePieceOrganizerApp:
             self.piece_list.insert(tk.END, piece.name)
             
             self.board.update_view()
-            self.status_var.set(f"Added custom polygon with {len(points)} points (scale: {scale})")
+            self.status_var.set(f"Added custom polygon with {len(polygon.exterior.coords)} points")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add polygon: {str(e)}")
         
