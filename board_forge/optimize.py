@@ -3,7 +3,6 @@ import numpy as np
 from shapely.affinity import translate, rotate
 from board_forge.design import Design
 from shapely.geometry import Polygon
-from board_forge.piece import Piece
 
 # Define constants for minimum spacing and other parameters
 MIN_SPACING = 10  # Minimum distance between pieces
@@ -20,13 +19,13 @@ def get_shape_signature(polygon):
     # A simple shape signature that's somewhat invariant to scaling and rotation
     return area / (perimeter * perimeter) if perimeter > 0 else 0
 
-def group_similar_shapes(pieces):
+def group_similar_shapes(slots):
     """Group shapes that have similar geometry"""
-    if not pieces:
+    if not slots:
         return []
         
-    # Get signatures for all pieces
-    signatures = [get_shape_signature(piece.shape) for piece in pieces]
+    # Get signatures for all slots
+    signatures = [get_shape_signature(slot) for slot in slots]
     
     # Group by similar signatures
     groups = {}
@@ -43,11 +42,11 @@ def group_similar_shapes(pieces):
     return list(groups.values())
 
 def constrain_to_canvas(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT):
-    """Ensure all pieces are within the canvas bounds with margin"""
-    if not design.pieces:
+    """Ensure all slots are within the canvas bounds with margin"""
+    if not design.slots:
         return design
         
-    pieces = design.pieces.copy()
+    slots = design.slots.copy()
     
     # Check the total bounds of the design
     bounds = design.bounding_box.bounds
@@ -75,11 +74,11 @@ def constrain_to_canvas(design: Design, canvas_width=CANVAS_WIDTH, canvas_height
     
     # If we need to shift, translate all pieces
     if shift_x != 0 or shift_y != 0:
-        for piece in pieces:
-            piece.shape = translate(piece.shape, shift_x, shift_y)
+        for i in range(len(slots)):
+            slots[i] = translate(slots[i], shift_x, shift_y)
     
     # Check if design is still too large for canvas
-    design = Design(pieces)
+    design = Design(slots)
     bounds = design.bounding_box.bounds
     width = bounds[2] - bounds[0]
     height = bounds[3] - bounds[1]
@@ -96,42 +95,41 @@ def constrain_to_canvas(design: Design, canvas_width=CANVAS_WIDTH, canvas_height
         center_x = canvas_width / 2
         center_y = canvas_height / 2
         
-        new_pieces = []
-        for piece in pieces:
+        new_slots = []
+        for slot in slots:
             # Translate to origin, scale, then translate back
-            moved_to_origin = translate(piece.shape, -center_x, -center_y)
+            moved_to_origin = translate(slot, -center_x, -center_y)
             # Use polygon coordinates and scale manually
             coords = list(moved_to_origin.exterior.coords)
             scaled_coords = [(x * scale, y * scale) for x, y in coords]
             scaled = Polygon(scaled_coords)
-            new_piece = Piece(piece.name, translate(scaled, center_x, center_y))
-            new_pieces.append(new_piece)
+            new_slots.append(translate(scaled, center_x, center_y))
         
-        design = Design(new_pieces)
+        design = Design(new_slots)
     
     return design
 
 def separate_overlapping_pieces(design: Design, min_distance=MIN_SPACING, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Move overlapping or too-close pieces apart to create a valid starting point"""
     modified = False
-    pieces = design.pieces.copy()
+    slots = design.slots.copy()
     
     # Try up to 50 iterations to separate pieces
     for _ in range(50):
         valid = True
         
-        # Check each pair of pieces
-        for i in range(len(pieces)):
-            for j in range(i + 1, len(pieces)):
-                distance = pieces[i].shape.distance(pieces[j].shape)
+        # Check each pair of slots
+        for i in range(len(slots)):
+            for j in range(i + 1, len(slots)):
+                distance = slots[i].distance(slots[j])
                 
                 # If too close or overlapping
                 if distance < min_distance:
                     valid = False
                     
                     # Get centroids
-                    c1 = pieces[i].shape.centroid
-                    c2 = pieces[j].shape.centroid
+                    c1 = slots[i].centroid
+                    c2 = slots[j].centroid
                     
                     # Direction vector between centroids
                     dx = c2.x - c1.x
@@ -151,8 +149,8 @@ def separate_overlapping_pieces(design: Design, min_distance=MIN_SPACING, canvas
                     move_amount = min_distance - distance + BUFFER_EXTRA
                     
                     # Move both pieces in opposite directions
-                    pieces[i].shape = translate(pieces[i].shape, -dx * move_amount/2, -dy * move_amount/2)
-                    pieces[j].shape = translate(pieces[j].shape, dx * move_amount/2, dy * move_amount/2)
+                    slots[i] = translate(slots[i], -dx * move_amount/2, -dy * move_amount/2)
+                    slots[j] = translate(slots[j], dx * move_amount/2, dy * move_amount/2)
                     modified = True
         
         # If all pieces are valid, we're done
@@ -160,7 +158,7 @@ def separate_overlapping_pieces(design: Design, min_distance=MIN_SPACING, canvas
             break
     
     # Ensure the design stays within canvas bounds
-    return constrain_to_canvas(Design(pieces), canvas_width, canvas_height)
+    return constrain_to_canvas(Design(slots), canvas_width, canvas_height)
 
 
 def evaluate(design: Design) -> float:
@@ -169,13 +167,13 @@ def evaluate(design: Design) -> float:
 
 def apply_random_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     amount = 15  # Movement amount
-    idx = random.randrange(len(design.pieces))
+    idx = random.randrange(len(design.slots))
     move_x = random.uniform(-amount, amount)
     move_y = random.uniform(-amount, amount)
     
-    # Get piece bounds before moving
-    piece = design.pieces[idx]
-    min_x, min_y, max_x, max_y = piece.shape.bounds
+    # Get slot bounds before moving
+    slot = design.slots[idx]
+    min_x, min_y, max_x, max_y = slot.bounds
     
     # Constrain movement to keep within canvas
     if min_x + move_x < CANVAS_MARGIN:
@@ -188,22 +186,21 @@ def apply_random_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas_h
     elif max_y + move_y > canvas_height - CANVAS_MARGIN:
         move_y = canvas_height - CANVAS_MARGIN - max_y
     
-    # Create a new piece with translated shape
-    new_piece = Piece(piece.name, translate(piece.shape, move_x, move_y))
+    translated = translate(slot, move_x, move_y)
     
-    result = Design(design.pieces[:idx] + [new_piece] + design.pieces[idx + 1:])
+    result = Design(design.slots[:idx] + [translated] + design.slots[idx + 1:])
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
 
 def apply_directed_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Move a piece toward the centroid of all other pieces"""
-    if len(design.pieces) < 2:
+    if len(design.slots) < 2:
         return design
 
-    idx = random.randrange(len(design.pieces))
+    idx = random.randrange(len(design.slots))
 
-    other_pieces = design.pieces[:idx] + design.pieces[idx+1:]
-    other_centroids = [piece.shape.centroid for piece in other_pieces]
+    other_slots = design.slots[:idx] + design.slots[idx+1:]
+    other_centroids = [slot.centroid for slot in other_slots]
     center_x = sum(c.x for c in other_centroids) / len(other_centroids)
     center_y = sum(c.y for c in other_centroids) / len(other_centroids)
     
@@ -211,7 +208,7 @@ def apply_directed_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas
     center_x = min(max(center_x, CANVAS_MARGIN), canvas_width - CANVAS_MARGIN)
     center_y = min(max(center_y, CANVAS_MARGIN), canvas_height - CANVAS_MARGIN)
 
-    piece_centroid = design.pieces[idx].shape.centroid
+    piece_centroid = design.slots[idx].centroid
     dir_x = center_x - piece_centroid.x
     dir_y = center_y - piece_centroid.y
 
@@ -221,11 +218,8 @@ def apply_directed_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas
         factor = random.uniform(0.2, 0.6)  # Move 20-60% of the way toward center
         move_x = dir_x * factor
         move_y = dir_y * factor
-        
-        # Create new piece with translated shape
-        new_piece = Piece(design.pieces[idx].name, translate(design.pieces[idx].shape, move_x, move_y))
-        
-        result = Design(design.pieces[:idx] + [new_piece] + design.pieces[idx + 1:])
+        translated = translate(design.slots[idx], move_x, move_y)
+        result = Design(design.slots[:idx] + [translated] + design.slots[idx + 1:])
         return constrain_to_canvas(result, canvas_width, canvas_height)
 
     return design
@@ -233,17 +227,17 @@ def apply_directed_translation(design: Design, canvas_width=CANVAS_WIDTH, canvas
 
 def align_similar_shapes(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Group and align similar shapes together"""
-    if len(design.pieces) < 2:
+    if len(design.slots) < 2:
         return design
     
     # Group similar shapes
-    shape_groups = group_similar_shapes(design.pieces)
+    shape_groups = group_similar_shapes(design.slots)
     
     # No groups found, return original design
     if not shape_groups:
         return design
         
-    new_pieces = design.pieces.copy()
+    new_slots = design.slots.copy()
     
     # Process each group
     for group in shape_groups:
@@ -252,8 +246,8 @@ def align_similar_shapes(design: Design, canvas_width=CANVAS_WIDTH, canvas_heigh
             
         # Get the first piece in the group as reference
         ref_idx = group[0]
-        ref_piece = new_pieces[ref_idx]
-        ref_bounds = ref_piece.shape.bounds
+        ref_piece = new_slots[ref_idx]
+        ref_bounds = ref_piece.bounds
         ref_width = ref_bounds[2] - ref_bounds[0]
         ref_height = ref_bounds[3] - ref_bounds[1]
         
@@ -272,8 +266,8 @@ def align_similar_shapes(design: Design, canvas_width=CANVAS_WIDTH, canvas_heigh
         # For each piece in the group after the first one
         for i, idx in enumerate(group[1:], 1):
             # Get current piece
-            piece = new_pieces[idx]
-            piece_bounds = piece.shape.bounds
+            piece = new_slots[idx]
+            piece_bounds = piece.bounds
             
             # Calculate row and column
             row = i // max_pieces_per_row
@@ -288,23 +282,23 @@ def align_similar_shapes(design: Design, canvas_width=CANVAS_WIDTH, canvas_heigh
             move_y = target_y - piece_bounds[1]
             
             # Move the piece
-            new_pieces[idx].shape = translate(piece.shape, move_x, move_y)
+            new_slots[idx] = translate(piece, move_x, move_y)
     
-    result = Design(new_pieces)
+    result = Design(new_slots)
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
 
 def arrange_in_compact_grid(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Arrange pieces in a more compact grid layout, preserving their rotation"""
-    if len(design.pieces) < 2:
+    if len(design.slots) < 2:
         return design
     
-    # Sort pieces by their centroids (top to bottom, left to right)
-    pieces = design.pieces.copy()
-    pieces_with_centroids = [(i, piece.shape.centroid.x, piece.shape.centroid.y) for i, piece in enumerate(pieces)]
+    # Sort slots by their centroids (top to bottom, left to right)
+    slots = design.slots.copy()
+    slots_with_centroids = [(i, slot.centroid.x, slot.centroid.y) for i, slot in enumerate(slots)]
     
     # Get approximate dimensions of a typical piece
-    bounds = [piece.shape.bounds for piece in pieces]
+    bounds = [slot.bounds for slot in slots]
     avg_width = sum(b[2] - b[0] for b in bounds) / len(bounds)
     avg_height = sum(b[3] - b[1] for b in bounds) / len(bounds)
     
@@ -313,24 +307,24 @@ def arrange_in_compact_grid(design: Design, canvas_width=CANVAS_WIDTH, canvas_he
     spacing_y = avg_height + MIN_SPACING
     
     # Sort by y first (row), then by x (column)
-    pieces_with_centroids.sort(key=lambda item: (item[2], item[1]))
+    slots_with_centroids.sort(key=lambda item: (item[2], item[1]))
     
     # Create a new layout in grid formation
-    new_pieces = pieces.copy()  # Start with a copy
+    new_slots = [None] * len(slots)  # Preallocate list
     start_x, start_y = CANVAS_MARGIN, CANVAS_MARGIN  # Starting position with margin
     
     # Calculate optimal number of columns based on canvas width
     available_width = canvas_width - 2*CANVAS_MARGIN
-    cols = max(1, min(int(available_width / spacing_x), int(np.sqrt(len(pieces)))))
+    cols = max(1, min(int(available_width / spacing_x), int(np.sqrt(len(slots)))))
     
-    for i, (idx, _, _) in enumerate(pieces_with_centroids):
+    for i, (idx, _, _) in enumerate(slots_with_centroids):
         # Calculate new grid position
         row = i // cols
         col = i % cols
         
-        # Get piece bounds to calculate offset
-        old_piece = pieces[idx]
-        min_x, min_y, max_x, max_y = old_piece.shape.bounds
+        # Get slot bounds to calculate offset
+        old_slot = slots[idx]
+        min_x, min_y, max_x, max_y = old_slot.bounds
         
         # Calculate translation to new position
         target_x = start_x + col * spacing_x
@@ -341,19 +335,19 @@ def arrange_in_compact_grid(design: Design, canvas_width=CANVAS_WIDTH, canvas_he
         offset_y = target_y - min_y
         
         # Translate to new position
-        new_pieces[idx].shape = translate(old_piece.shape, offset_x, offset_y)
+        new_slots[idx] = translate(old_slot, offset_x, offset_y)
     
-    result = Design(new_pieces)
+    result = Design(new_slots)
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
 
 def apply_compact_arrangement(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Try to move all pieces closer to the center to create a more compact arrangement"""
-    if len(design.pieces) < 2:
+    if len(design.slots) < 2:
         return design
     
     # Find the center of all pieces (constrained to canvas)
-    all_centroids = [piece.shape.centroid for piece in design.pieces]
+    all_centroids = [slot.centroid for slot in design.slots]
     center_x = sum(c.x for c in all_centroids) / len(all_centroids)
     center_y = sum(c.y for c in all_centroids) / len(all_centroids)
     
@@ -361,10 +355,10 @@ def apply_compact_arrangement(design: Design, canvas_width=CANVAS_WIDTH, canvas_
     center_x = min(max(center_x, CANVAS_MARGIN), canvas_width - CANVAS_MARGIN)
     center_y = min(max(center_y, CANVAS_MARGIN), canvas_height - CANVAS_MARGIN)
     
-    # Create a new list of pieces with each one moved slightly toward center
-    new_pieces = design.pieces.copy()
-    for i, piece in enumerate(new_pieces):
-        c = piece.shape.centroid
+    # Create a new list of slots with each one moved slightly toward center
+    new_slots = []
+    for slot in design.slots:
+        c = slot.centroid
         dir_x = center_x - c.x
         dir_y = center_y - c.y
         
@@ -375,34 +369,32 @@ def apply_compact_arrangement(design: Design, canvas_width=CANVAS_WIDTH, canvas_
             factor = random.uniform(0.05, 0.15)  # 5-15% movement
             move_x = dir_x * factor
             move_y = dir_y * factor
-            new_pieces[i].shape = translate(piece.shape, move_x, move_y)
+            new_slots.append(translate(slot, move_x, move_y))
+        else:
+            new_slots.append(slot)
     
-    result = Design(new_pieces)
+    result = Design(new_slots)
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
 
 def apply_full_rotation(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Rotate a piece by 90, 180, or 270 degrees"""
-    idx = random.randrange(len(design.pieces))
+    idx = random.randrange(len(design.slots))
     angle = random.choice([np.pi / 2, np.pi, 3 * np.pi / 2])  # 90, 180, or 270 degrees
+    rotated = rotate(design.slots[idx], angle, origin='centroid', use_radians=True)
     
-    new_pieces = design.pieces.copy()
-    new_pieces[idx].shape = rotate(design.pieces[idx].shape, angle, origin='centroid', use_radians=True)
-    
-    result = Design(new_pieces)
+    result = Design(design.slots[:idx] + [rotated] + design.slots[idx + 1:])
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
 
 def apply_random_rotation(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Rotate a piece by a small random angle"""
     amount = 1.5
-    idx = random.randrange(len(design.pieces))
+    idx = random.randrange(len(design.slots))
     angle = random.uniform(-amount, amount)
+    rotated = rotate(design.slots[idx], angle, origin='centroid', use_radians=True)
     
-    new_pieces = design.pieces.copy()
-    new_pieces[idx].shape = rotate(design.pieces[idx].shape, angle, origin='centroid', use_radians=True)
-    
-    result = Design(new_pieces)
+    result = Design(design.slots[:idx] + [rotated] + design.slots[idx + 1:])
     return constrain_to_canvas(result, canvas_width, canvas_height)
 
 
@@ -444,13 +436,13 @@ def apply_random_action(design: Design, phase="explore", allow_rotation=True, ca
         r = random.random()
         if r < 0.6:
             amount_save = 1.5  # Smaller movements for refinement
-            idx = random.randrange(len(design.pieces))
+            idx = random.randrange(len(design.slots))
             move_x = random.uniform(-amount_save, amount_save)
             move_y = random.uniform(-amount_save, amount_save)
             
-            # Get piece bounds before moving
-            piece = design.pieces[idx]
-            min_x, min_y, max_x, max_y = piece.shape.bounds
+            # Get slot bounds before moving
+            slot = design.slots[idx]
+            min_x, min_y, max_x, max_y = slot.bounds
             
             # Constrain movement to keep within canvas
             if min_x + move_x < CANVAS_MARGIN:
@@ -462,28 +454,19 @@ def apply_random_action(design: Design, phase="explore", allow_rotation=True, ca
                 move_y = CANVAS_MARGIN - min_y
             elif max_y + move_y > canvas_height - CANVAS_MARGIN:
                 move_y = canvas_height - CANVAS_MARGIN - max_y
-            
-            # Create new pieces list
-            new_pieces = design.pieces.copy()
-            # Update the selected piece
-            new_pieces[idx].shape = translate(piece.shape, move_x, move_y)
-            
-            result = Design(new_pieces)
+                
+            translated = translate(slot, move_x, move_y)
+            result = Design(design.slots[:idx] + [translated] + design.slots[idx + 1:])
             return constrain_to_canvas(result, canvas_width, canvas_height)
         elif r < 0.8:
             return apply_directed_translation(design, canvas_width, canvas_height)
         else:
             if allow_rotation:
                 amount_save = 0.5
-                idx = random.randrange(len(design.pieces))
+                idx = random.randrange(len(design.slots))
                 angle = random.uniform(-amount_save, amount_save)
-                
-                # Create new pieces list
-                new_pieces = design.pieces.copy()
-                # Update the selected piece
-                new_pieces[idx].shape = rotate(design.pieces[idx].shape, angle, origin='centroid', use_radians=True)
-                
-                result = Design(new_pieces)
+                rotated = rotate(design.slots[idx], angle, origin='centroid', use_radians=True)
+                result = Design(design.slots[:idx] + [rotated] + design.slots[idx + 1:])
                 return constrain_to_canvas(result, canvas_width, canvas_height)
             else:
                 return apply_directed_translation(design, canvas_width, canvas_height)
@@ -491,13 +474,13 @@ def apply_random_action(design: Design, phase="explore", allow_rotation=True, ca
 
 def fix_isolated_piece(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Fix any piece that's positioned far away from the rest"""
-    if len(design.pieces) < 2:
+    if len(design.slots) < 2:
         return design
         
-    pieces = design.pieces.copy()
+    slots = design.slots.copy()
     
     # Calculate average position of all pieces
-    centroids = [piece.shape.centroid for piece in pieces]
+    centroids = [slot.centroid for slot in slots]
     avg_x = sum(c.x for c in centroids) / len(centroids)
     avg_y = sum(c.y for c in centroids) / len(centroids)
     
@@ -509,8 +492,8 @@ def fix_isolated_piece(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=
     max_distance = 0
     outlier_idx = -1
     
-    for i, piece in enumerate(pieces):
-        c = piece.shape.centroid
+    for i, slot in enumerate(slots):
+        c = slot.centroid
         distance = ((c.x - avg_x)**2 + (c.y - avg_y)**2)**0.5
         
         # Keep track of the piece furthest from center
@@ -521,17 +504,17 @@ def fix_isolated_piece(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=
     # If we found a significant outlier, move it closer to the group
     if max_distance > 200 and outlier_idx >= 0:  # Threshold for "too far"
         # Get the outlier piece
-        outlier = pieces[outlier_idx]
-        c = outlier.shape.centroid
+        outlier = slots[outlier_idx]
+        c = outlier.centroid
         
         # Calculate movement vector toward center
         dir_x = avg_x - c.x
         dir_y = avg_y - c.y
         
         # Move the piece 90% of the way to the average position
-        pieces[outlier_idx].shape = translate(outlier.shape, dir_x * 0.9, dir_y * 0.9)
+        slots[outlier_idx] = translate(outlier, dir_x * 0.9, dir_y * 0.9)
         
-        result = Design(pieces)
+        result = Design(slots)
         return constrain_to_canvas(result, canvas_width, canvas_height)
     
     return design
@@ -540,7 +523,7 @@ def fix_isolated_piece(design: Design, canvas_width=CANVAS_WIDTH, canvas_height=
 def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotation=True, canvas_width=CANVAS_WIDTH, canvas_height=CANVAS_HEIGHT) -> Design:
     """Optimize the design using simulated annealing"""
     # Make a clean copy of the initial design
-    design = Design([Piece(piece.name, piece.shape) for piece in initial_design.pieces])
+    design = Design([slot for slot in initial_design.slots])
     
     # Ensure design is within canvas bounds to start with
     design = constrain_to_canvas(design, canvas_width, canvas_height)
@@ -549,7 +532,7 @@ def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotatio
     design = fix_isolated_piece(design, canvas_width, canvas_height)
     
     # Apply different initial arrangements based on rotation preference
-    if len(design.pieces) > 3:
+    if len(design.slots) > 3:
         if allow_rotation:
             # With rotation, grid layout is more effective
             design = arrange_in_compact_grid(design, canvas_width, canvas_height)
@@ -635,7 +618,7 @@ def optimize(initial_design: Design, iterations=10000, alpha=0.99, allow_rotatio
     best_design = fix_isolated_piece(best_design, canvas_width, canvas_height)
     
     # If we didn't improve at all, try one more specialized arrangement based on rotation preference
-    if best_score >= evaluate(initial_design) and len(initial_design.pieces) > 1:
+    if best_score >= evaluate(initial_design) and len(initial_design.slots) > 1:
         if allow_rotation:
             grid_design = arrange_in_compact_grid(initial_design, canvas_width, canvas_height)
             if grid_design.is_valid and evaluate(grid_design) < best_score:
