@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog, filedialog
 import os
 import sys
 import math
@@ -11,6 +11,8 @@ from ui.board_view import BoardCanvas
 from design import Design
 from data.sample_pieces import SAMPLE_PIECES, get_piece
 from shapely.geometry import Polygon
+from piece import Piece
+from data.piece_dimensions import piece_dims
 
 class GamePieceOrganizerApp:
     def __init__(self, root):
@@ -19,7 +21,7 @@ class GamePieceOrganizerApp:
         root.geometry("1000x700")
         
         # Load and set the logo/icon
-        self.design = Design(slots=[])
+        self.design = Design(pieces=[])
 
         self.board_width = 300
         self.board_height = 400
@@ -67,6 +69,7 @@ class GamePieceOrganizerApp:
         self.board.set_app(self)
         
         # Create controls
+        self.piece_list = self.create_piece_display()
         self.create_piece_selector()
         self.create_board_controls()
         self.create_optimization_controls()
@@ -80,6 +83,43 @@ class GamePieceOrganizerApp:
             anchor=tk.W
         )
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def create_piece_display(self):
+        display_frame = ttk.LabelFrame(self.right_frame, text="Piece List")
+        display_frame.pack(fill=tk.X, pady=(0, 10))
+        listbox = tk.Listbox(display_frame, width=40, height=10)
+        listbox.pack(padx=20, pady=20)
+        listbox.bind("<Double-Button-1>", self.rename_piece)
+        
+        for piece in self.design.pieces:
+            listbox.insert(tk.END, piece.name)
+
+        self.add_image_button = tk.Button(display_frame, text="Add from Image", command=self.add_from_image)
+        self.add_image_button.pack(pady=5)
+
+        return listbox
+    
+    def add_from_image(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp")])
+        if file_path:
+            name = file_path.split("/")[-1]  # Extracts filename
+            dims = piece_dims(name)
+            for i, width,height in enumerate(dims):
+                piece = Piece(f'{name} {i}', [(0,0), (width, 0), (height, 0), (width, height)])
+                self.design.append(piece)
+                self.piece_list.insert(tk.END, piece.name)
+
+    
+    def rename_piece(self, event=None):
+        selected_index = self.piece_list.curselection()
+        if selected_index:
+            index = selected_index[0]
+            old_name = self.design.pieces[index].name
+            new_name = simpledialog.askstring("Rename Piece", f"Rename '{old_name}' to:")
+            if new_name:
+                self.design.pieces[index].name = new_name
+                self.piece_list.delete(index)
+                self.piece_list.insert(index, new_name)
     
     def create_piece_selector(self):
         """Create the custom polygon input panel"""
@@ -140,7 +180,9 @@ class GamePieceOrganizerApp:
             # Create the polygon
             polygon = Polygon(scaled_points)
             
-            self.design.slots.append(polygon)
+            piece = Piece(name="Unnamed Piece", shape=polygon)
+            self.design.pieces.append(piece)
+            self.piece_list.insert(tk.END, piece.name)
             self.board.update_view()
             self.status_var.set(f"Added custom polygon with {len(points)} points (scale: {scale})")
         except Exception as e:
@@ -275,7 +317,7 @@ class GamePieceOrganizerApp:
             piece = get_piece(piece_name, scale)
             
             # Add it to the design and update the view
-            self.design.slots.append(piece)
+            self.design.pieces.append(piece)
             self.board.update_view()
             self.status_var.set(f"Added {piece_name} (scale: {scale})")
         except Exception as e:
@@ -293,8 +335,8 @@ class GamePieceOrganizerApp:
         """Remove the currently selected slot"""
         if hasattr(self.board, 'selected_slot') and self.board.selected_slot is not None:
             index = self.board.selected_slot
-            if 0 <= index < len(self.design.slots):
-                self.design.slots.pop(index)
+            if 0 <= index < len(self.design.pieces):
+                self.design.pieces.pop(index)
                 self.board.selected_slot = None
                 self.board.update_view()
                 self.status_var.set("Removed selected slot")
@@ -302,7 +344,7 @@ class GamePieceOrganizerApp:
     def clear_all_slots(self):
         """Remove all slots from the design"""
         if messagebox.askyesno("Confirm", "Are you sure you want to remove all slots?"):
-            self.design.slots = []
+            self.design.pieces = []
             if hasattr(self.board, 'selected_slot'):
                 self.board.selected_slot = None
             self.board.update_view()
@@ -322,7 +364,7 @@ class GamePieceOrganizerApp:
     
     def run_optimization(self):
         """Run the optimization algorithm on the current slots"""
-        if not self.design.slots:
+        if not self.design.pieces:
             messagebox.showinfo("Error", "No slots to optimize")
             return
         
@@ -382,7 +424,7 @@ class GamePieceOrganizerApp:
         
     def export_svg(self):
         """Export the current design as SVG files"""
-        if not self.design.slots:
+        if not self.design.pieces:
             messagebox.showinfo("Error", "No slots to export")
             return
             
@@ -428,7 +470,7 @@ class GamePieceOrganizerApp:
     
     def validate_design(self):
         """Validate that the current design is valid (no overlaps, etc.)"""
-        if not self.design.slots:
+        if not self.design.pieces:
             messagebox.showinfo("Validation", "No slots to validate")
             return
             

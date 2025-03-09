@@ -3,17 +3,18 @@ from typing import List
 from shapely import unary_union
 from shapely.geometry import Polygon, box
 from svgwrite import Drawing
+from piece import Piece
 
 PADDING = 10
 
 @dataclass
 class Design:
-    slots: List[Polygon]
+    pieces: List[Piece]
 
 
     @property
     def bounding_box(self) -> Polygon:
-        unified = unary_union(self.slots)
+        unified = unary_union([p.shape for p in self.pieces])
         min_x, min_y, max_x, max_y = unified.bounds
         return box(min_x - PADDING, min_y - PADDING, max_x + PADDING, max_y + PADDING)
 
@@ -22,9 +23,9 @@ class Design:
     def is_valid(self) -> bool:
         """Check if all slots maintain a minimum distance from each other"""
         min_distance = 10.0
-        for i in range(len(self.slots)):
-            for j in range(i + 1, len(self.slots)):
-                if self.slots[i].distance(self.slots[j]) < min_distance:
+        for i in range(len(self.pieces)):
+            for j in range(i + 1, len(self.pieces)):
+                if self.pieces[i].shape.distance(self.pieces[j].shape) < min_distance:
                     return False
         return True
 
@@ -50,9 +51,9 @@ class Design:
             stroke_width=stroke_width
         ))
         # Slots
-        for slot in self.slots:
+        for piece in self.pieces:
             dwg.add(dwg.polygon(
-                points=list(slot.exterior.coords),
+                points=list(piece.shape.exterior.coords),
                 fill='none',
                 stroke='black',
                 stroke_width=stroke_width
