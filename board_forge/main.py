@@ -140,6 +140,38 @@ class GamePieceOrganizerApp:
             # Create the polygon
             polygon = Polygon(scaled_points)
             
+            # Find a good position for the new polygon
+            # Calculate the offset for the new piece
+            # First, find the bounds of the new polygon
+            min_x, min_y, max_x, max_y = polygon.bounds
+            width = max_x - min_x
+            height = max_y - min_y
+            
+            # Calculate the grid size for placement
+            grid_size = max(width, height) + 10  # Add some spacing
+            
+            # Get the canvas dimensions
+            canvas_width = self.board.winfo_width() or 600  # Default if not yet rendered
+            canvas_height = self.board.winfo_height() or 500  # Default if not yet rendered
+            
+            # Maximum number of pieces per row based on canvas width
+            max_per_row = max(1, int((canvas_width - 40) / grid_size))
+            
+            # Calculate position based on the number of existing slots
+            slot_index = len(self.design.slots)
+            row = slot_index // max_per_row
+            col = slot_index % max_per_row
+            
+            # Calculate the translation needed
+            # Start with a consistent initial position for all pieces
+            offset_x = 10 + col * grid_size  # Start with left margin
+            offset_y = 10 + row * grid_size  # Start with top margin
+            
+            # Move the polygon to the absolute position (not relative to its min bounds)
+            from shapely.affinity import translate
+            polygon = translate(polygon, offset_x - min_x, offset_y - min_y)
+            
+            # Add the polygon to the design
             self.design.slots.append(polygon)
             self.board.update_view()
             self.status_var.set(f"Added custom polygon with {len(points)} points (scale: {scale})")
