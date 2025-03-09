@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ui.board_view import BoardCanvas
 from design import Design
 from data.sample_pieces import SAMPLE_PIECES, get_piece
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 from piece import Piece
 from data.piece_dimensions import piece_dims
 
@@ -120,11 +120,12 @@ class GamePieceOrganizerApp:
     def add_from_image(self):
         file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.jpg")])
         num_pieces = simpledialog.askinteger("Number of Piece Selection", "How many pieces in your image?")
+        width = simpledialog.askfloat("Index Piece Size", "What is the width in milimeters of your smallest object?")
         if file_path:
             name = file_path.split("/")[-1]  # Extracts filename
             dims = piece_dims(file_path, num_pieces=num_pieces)
             for i, (width,height) in enumerate(dims):
-                piece = Piece(f'{name} {i}', [(0,0), (width, 0), (height, 0), (width, height)])
+                piece = Piece(f'{name} {i}', box(0, 0, width, height))
                 self.pieces.append(piece)
                 self.piece_list.insert(tk.END, piece.name)
     
@@ -253,7 +254,7 @@ class GamePieceOrganizerApp:
             polygon = translate(polygon, offset_x - min_x, offset_y - min_y)
             # Create the piece and add to the pieces list
             piece = Piece(name="Unnamed Piece", shape=polygon)
-            if piece not in self.pieces:
+            if custom and piece not in self.pieces:
                 self.pieces.append(piece)
                 self.piece_list.insert(tk.END, piece.name)
             self.design.slots.append(polygon)
