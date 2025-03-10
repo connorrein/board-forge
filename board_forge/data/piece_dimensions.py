@@ -91,7 +91,7 @@ def get_area(c):
             
 if __name__ == "__main__":
     #FOR TESTING
-    file_name = "/Users/idoavnon/Documents/Programming/UW/556/board-forge/board_forge/data/sample_images/IMG_5002.JPG"
-    piece_dims(file_name, 20, 9)
+    file_name = "/Users/idoavnon/Documents/Programming/UW/556/board-forge/board_forge/data/sample_images/IMG_5004.JPG"
+    print(piece_dims(file_name, 76, 4))
     
 

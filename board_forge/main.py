@@ -33,26 +33,26 @@ class GamePieceOrganizerApp:
         self.header_frame = ttk.Frame(self.main_frame)
         self.header_frame.pack(fill=tk.X, pady=(0, 10))
         
-        try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "board_forge", "data", "logo.png")
-            if not os.path.exists(logo_path):
-                logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                    "data", "logo.png")
+        # try:
+        #     logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        #                         "board_forge", "data", "logo.png")
+        #     if not os.path.exists(logo_path):
+        #         logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        #                             "data", "logo.png")
                         
-            print(f"Attempting to load logo from: {logo_path}")
-            self.logo_image = tk.PhotoImage(file=logo_path)
-            self.logo = tk.PhotoImage(file=logo_path)
-            logo = tk.PhotoImage(file=logo_path)
-            root.iconphoto(True, logo)  # Set window icon
+        #     print(f"Attempting to load logo from: {logo_path}")
+        #     self.logo_image = tk.PhotoImage(file=logo_path)
+        #     self.logo = tk.PhotoImage(file=logo_path)
+        #     logo = tk.PhotoImage(file=logo_path)
+        #     root.iconphoto(True, logo)  # Set window icon
             
-            self.logo_image = self.logo_image.subsample(13, 13)  # Reduce to 1/8 of original size
+        #     self.logo_image = self.logo_image.subsample(13, 13)  # Reduce to 1/8 of original size
             
-            # Create a label to display the logo
-            logo_label = ttk.Label(self.header_frame, image=self.logo_image)
-            logo_label.pack(side=tk.LEFT, padx=5)
-        except Exception as e:
-            print(f"Error loading logo: {e}")
+        #     # Create a label to display the logo
+        #     logo_label = ttk.Label(self.header_frame, image=self.logo_image)
+        #     logo_label.pack(side=tk.LEFT, padx=5)
+        # except Exception as e:
+        #     print(f"Error loading logo: {e}")
         
         self.left_frame = ttk.Frame(self.main_frame)
         self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -91,7 +91,7 @@ class GamePieceOrganizerApp:
         display_frame = ttk.LabelFrame(self.right_frame, text="Piece List")
 
         display_frame.pack(fill=tk.X, pady=(0, 10))
-        listbox = tk.Listbox(display_frame, width=40, height=10)
+        listbox = tk.Listbox(display_frame, width=40, height=5)
         listbox.pack(padx=20, pady=20)
         listbox.bind("<Double-Button-1>", self.show_context_menu)
 
@@ -120,10 +120,10 @@ class GamePieceOrganizerApp:
     def add_from_image(self):
         file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.jpg")])
         num_pieces = simpledialog.askinteger("Number of Piece Selection", "How many pieces in your image?")
-        width = simpledialog.askfloat("Index Piece Size", "What is the width in milimeters of your smallest object?")
+        width = simpledialog.askfloat("Index Piece Size", "What is the width in milimeters of your largest object?")
         if file_path:
             name = file_path.split("/")[-1]  # Extracts filename
-            dims = piece_dims(file_path, num_pieces=num_pieces)
+            dims = piece_dims(file_path, width=width, num_pieces=num_pieces)
             for i, (width,height) in enumerate(dims):
                 piece = Piece(f'{name} {i}', box(0, 0, width, height))
                 self.pieces.append(piece)
